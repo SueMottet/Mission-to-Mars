@@ -10,8 +10,12 @@ import scraping
 # set up Flask
 app = Flask(__name__)
 
-# Use flask_pymongo to set up mongo connection
+#Use flask_pymongo to set up connection through mLab
+#app.config["MONGO_URI"] = os.environ.get('authentication')
+#mongo = PyMongo(app)
 
+
+# Use flask_pymongo to set up mongo connection
 # tells Python that our app will connect to Mongo using a URI, a uniform resource identifier similar to a URL.
 # This URI is saying that the app can reach Mongo through our localhost server, using port 27017, using a database named "mars_app".
 app.config["MONGO_URI"] = "mongodb://localhost:27017/mars_app"
@@ -40,6 +44,8 @@ def scrape():
    mars_data = scraping.scrape_all()
    # update the database
    mars.update({}, mars_data, upsert=True)
+   # use replace instead of update if update doesn't work -- replace_1 --replace_all
+   
    # add a redirect after successfully scraping the data
    # navigates our page back to / where we can see the updated content.
    return redirect('/', code=302)

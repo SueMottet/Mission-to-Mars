@@ -1,3 +1,4 @@
+# SAM 12/3/20201
 # Import Splinter and BeautifulSoup
 from splinter import Browser
 from bs4 import BeautifulSoup as soup
@@ -6,13 +7,14 @@ import datetime as dt
 from webdriver_manager.chrome import ChromeDriverManager
 
 # Set up Splinter
-# executable_path = {'executable_path': ChromeDriverManager().install()}
-# browser = Browser('chrome', **executable_path, headless=False)
+#executable_path = {'executable_path': ChromeDriverManager().install()}
+#browser = Browser('chrome', **executable_path, headless=False)
+
 
 def scrape_all():
     # Initiate headless driver for deployment
-    executable_path = {'executable_path': ChromeDriverManager().install()}
-    browser = Browser('chrome', **executable_path, headless=True)
+    #executable_path = init_browser() # {'executable_path': ChromeDriverManager().install()}
+    browser = init_browser()
     
     news_title, news_paragraph = mars_news(browser)
     
@@ -21,17 +23,24 @@ def scrape_all():
       "news_paragraph": news_paragraph,
       "featured_image": featured_image(browser),
       "facts": mars_facts(),
+      "hemispheres": mars_hemispheres(browser),
       "last_modified": dt.datetime.now()}
-    
+        
     # Stop webdriver and return data
     browser.quit()
     return data
+
+def init_browser():
+    executable_path = {'executable_path': r"C:/Users/motte/.wdm/drivers/chromedriver/win32/96.0.4664.45/chromedriver.exe"}
+    return Browser("chrome", **executable_path, headless=False)
 
 def mars_news(browser):
     
     # Scrape Mars News
     # Visit the mars nasa news site
     url = 'https://data-class-mars.s3.amazonaws.com/Mars/index.html'
+    # url = 'https://redplanetscience.com/'
+    # url = 'https://mars.nasa.gov/news/'
     browser.visit(url)
 
     # Optional delay for loading the page
@@ -45,18 +54,16 @@ def mars_news(browser):
     try:
         
         slide_elem = news_soup.select_one('div.list_text')
-        slide_elem.find('div', class_='content_title')
+        # slide_elem.find('div', class_='content_title')
 
         # Use the parent element to find the first `a` tag and save it as `news_title`
         news_title = slide_elem.find('div', class_='content_title').get_text()
-        news_title
-
+       
         # Use the parent element to find the paragraph text
         news_p = slide_elem.find('div', class_='article_teaser_body').get_text()
-        news_p
-    
+            
     except AttributeError:
-        return None, None
+            return None, None
     
     return news_title, news_p
     
@@ -66,6 +73,8 @@ def featured_image(browser):
     
     # Visit URL
     url = 'https://data-class-jpl-space.s3.amazonaws.com/JPL_Space/index.html'
+    # url = 'https://spaceimages-mars.com'
+    
     browser.visit(url)
 
     # Find and click the full image button
@@ -78,11 +87,14 @@ def featured_image(browser):
 
     # Add try/except for error handling
     try:
-        # Use the base URL to create an absolute URL
-        img_url = f'https://data-class-jpl-space.s3.amazonaws.com/JPL_Space/{img_url_rel}'
-    
+       # Find the relative image url
+        img_url_rel = img_soup.find('img', class_='fancybox-image').get('src')
     except AttributeError:
         return None
+    
+    # Use the base URL to create an absolute URL
+    img_url = f'https://data-class-jpl-space.s3.amazonaws.com/JPL_Space/{img_url_rel}'
+    # img_url = f'https://spaceimages-mars.com/{img_url_rel}'
     
     return img_url
 
@@ -92,6 +104,7 @@ def mars_facts():
     try:
         # Use 'read_html' to scrape the facts table into a dataframe
         df = pd.read_html('https://data-class-mars-facts.s3.amazonaws.com/Mars_Facts/index.html')[0]
+        # df = pd.read_html('https://galaxyfacts-mars.com')[0]
     
     except BaseException:
         return None
@@ -103,8 +116,57 @@ def mars_facts():
     # Convert dataframe into HTML format, add bootstrap
     return df.to_html(classes="table table-striped")
 
+# ## Hemispheres
+def mars_hemispheres (browser):
+# # D1: Scrape High-Resolution Mars’ Hemisphere Images and Titles
+
+# ### Hemispheres
+    # 1. Use browser to visit the URL 
+    url = 'https://marshemispheres.com/'
+    # url = 'https://astrogeology.usgs.gov' 
+    browser.visit(url)
+
+    # HTML Object
+    html_hemi = browser.html
+
+    # Parse HTML with Beautiful Soup
+    hemi_soup = soup(html_hemi, 'html.parser')
+
+    # Retreive all items that contain mars hemispheres information
+    items = hemi_soup.find_all('div', class_='item')
+
+    # 2. Create a list to hold the images and titles.
+    hemisphere_image_urls = []
+
+    # 3. Write code to retrieve the image urls and titles for each hemisphere.
+    for i in items:
+     
+       # Store title
+       title = i.find('h3').text
+  
+       # Store link that leads to full image website
+       partial_img_url = i.find('a', class_='itemLink product-item')['href']
+   
+       # Visit the link that contains the full image website 
+       browser.visit(url + partial_img_url)
+
+       # HTML Object of each hemisphere website 
+       partial_img_html = browser.html
+
+       # Parse HTML with Beautiful Soup for every each hemisphere website 
+       hemi_soup = soup( partial_img_html, 'html.parser')
+
+       # Retrieve full image source 
+       img_url = url + hemi_soup.find('img', class_='wide-image')['src']
+
+       # Append the retreived information into a list of dictionaries 
+       hemisphere_image_urls.append({"img_url" : img_url, "title" : title})
+
+    return hemisphere_image_urls
+
 if __name__ == "__main__":
     # If running as script, print scraped data
     print(scrape_all())
+
 
 
